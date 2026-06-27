@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ModCNC</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand"><span class="logo">⬡</span> ModCNC</div>
+
+      <div class="conn">
+        <select id="portSelect" class="select" title="Porta serial"></select>
+        <button id="refreshPorts" class="icon-btn" title="Atualizar portas">⟳</button>
+        <select id="baudSelect" class="select" title="Baud rate">
+          <option value="115200" selected>115200</option>
+          <option value="250000">250000</option>
+          <option value="57600">57600</option>
+          <option value="38400">38400</option>
+          <option value="19200">19200</option>
+          <option value="9600">9600</option>
+        </select>
+        <button id="connectBtn" class="btn primary">Conectar</button>
+        <span id="connDot" class="dot off" title="Desconectado"></span>
+        <button id="settingsBtn" class="icon-btn" title="Configurações do GRBL">⚙</button>
+      </div>
+    </header>
+
+    <main class="grid">
+      <!-- DRO + ações -->
+      <section class="panel dro" aria-label="Posição">
+        <div class="panel-head">
+          <h2>Posição</h2>
+          <span id="stateBadge" class="badge">—</span>
+        </div>
+
+        <div class="dro-table">
+          <div class="dro-head"><span></span><span>Trabalho</span><span>Máquina</span></div>
+          <div class="dro-row" data-axis="x">
+            <span class="axis x">X</span>
+            <span class="work" id="wposX">0.000</span>
+            <span class="mach" id="mposX">0.000</span>
+          </div>
+          <div class="dro-row" data-axis="y">
+            <span class="axis y">Y</span>
+            <span class="work" id="wposY">0.000</span>
+            <span class="mach" id="mposY">0.000</span>
+          </div>
+          <div class="dro-row" data-axis="z">
+            <span class="axis z">Z</span>
+            <span class="work" id="wposZ">0.000</span>
+            <span class="mach" id="mposZ">0.000</span>
+          </div>
+        </div>
+
+        <div class="rates">
+          <span>Avanço <b id="feedRate">0</b></span>
+          <span>Spindle <b id="spindleRate">0</b></span>
+        </div>
+
+        <div class="zero-row">
+          <button class="btn ghost" data-zero="X">X=0</button>
+          <button class="btn ghost" data-zero="Y">Y=0</button>
+          <button class="btn ghost" data-zero="Z">Z=0</button>
+          <button class="btn ghost" data-zero="ALL">Zerar tudo</button>
+        </div>
+
+        <div class="action-grid">
+          <button class="btn" id="homeBtn">🏠 Home</button>
+          <button class="btn" id="unlockBtn">🔓 Desbloquear</button>
+          <button class="btn warn" id="holdBtn">⏸ Hold</button>
+          <button class="btn" id="resumeBtn">▶ Resume</button>
+          <button class="btn" id="gotoZeroBtn">⌖ Ir p/ zero</button>
+          <button class="btn danger" id="resetBtn">⟲ Reset</button>
+        </div>
+      </section>
+
+      <!-- Visualizador + job -->
+      <section class="panel viz" aria-label="Visualizador">
+        <div class="panel-head">
+          <h2>Toolpath</h2>
+          <div class="viz-tools">
+            <label class="file-btn">
+              📂 Carregar
+              <input type="file" id="fileInput" accept=".nc,.gcode,.gco,.g,.tap,.txt,.cnc" hidden />
+            </label>
+            <span id="fileName" class="muted">nenhum arquivo</span>
+            <div class="view-toggle" id="viewToggle">
+              <button data-view="2d" class="active">2D</button>
+              <button data-view="3d">3D</button>
+            </div>
+            <button class="icon-btn" id="fitBtn" title="Ajustar visão">⤢</button>
+          </div>
+        </div>
+
+        <div class="canvas-wrap">
+          <canvas id="viz"></canvas>
+          <canvas id="viz3d" class="hidden"></canvas>
+        </div>
+
+        <div class="job-bar">
+          <button class="btn primary" id="runBtn" disabled>▶ Rodar</button>
+          <button class="btn warn" id="pauseBtn" disabled>⏸ Pausar</button>
+          <button class="btn danger" id="stopBtn" disabled>⏹ Parar</button>
+          <div class="progress"><div id="progressFill" class="progress-fill"></div></div>
+          <span id="progressLabel" class="muted">0 / 0</span>
+        </div>
+      </section>
+
+      <!-- Controles (abas) -->
+      <section class="panel controls" aria-label="Controles">
+        <div class="tabs" id="ctrlTabs">
+          <button data-tab="spindle" class="active">Spindle / Refrig.</button>
+          <button data-tab="overrides">Overrides</button>
+          <button data-tab="probe">Sondar</button>
+          <button data-tab="coords">Coordenadas</button>
+        </div>
+
+        <!-- Spindle + refrigeração -->
+        <div class="tab-pane active" data-pane="spindle">
+          <div class="ctrl-row">
+            <label>Spindle</label>
+            <input type="number" id="spindleRpm" value="10000" min="0" step="500" title="RPM (S)" />
+            <button class="btn" id="spindleCW" data-acc="cw">▶ M3 (horário)</button>
+            <button class="btn" id="spindleCCW" data-acc="ccw">◀ M4 (anti)</button>
+            <button class="btn danger" id="spindleOff">⏹ M5</button>
+          </div>
+          <div class="ctrl-row">
+            <label>Refrig.</label>
+            <button class="btn" id="floodOn" data-acc="flood">💧 Flood (M8)</button>
+            <button class="btn" id="mistOn" data-acc="mist">🌫 Mist (M7)</button>
+            <button class="btn" id="coolantOff">⏹ M9</button>
+          </div>
+        </div>
+
+        <!-- Overrides -->
+        <div class="tab-pane" data-pane="overrides">
+          <div class="ov-row">
+            <label>Avanço</label>
+            <button class="btn" data-rt="feedMinus10">−10</button>
+            <span class="ov-val" id="ovFeed">100%</span>
+            <button class="btn" data-rt="feedPlus10">+10</button>
+            <button class="btn ghost" data-rt="feedReset">reset</button>
+          </div>
+          <div class="ov-row">
+            <label>Rápido</label>
+            <button class="btn" data-rt="rapid25">25%</button>
+            <span class="ov-val" id="ovRapid">100%</span>
+            <button class="btn" data-rt="rapid50">50%</button>
+            <button class="btn ghost" data-rt="rapidReset">100%</button>
+          </div>
+          <div class="ov-row">
+            <label>Spindle</label>
+            <button class="btn" data-rt="spindleMinus10">−10</button>
+            <span class="ov-val" id="ovSpindle">100%</span>
+            <button class="btn" data-rt="spindlePlus10">+10</button>
+            <button class="btn ghost" data-rt="spindleReset">reset</button>
+          </div>
+        </div>
+
+        <!-- Probe -->
+        <div class="tab-pane" data-pane="probe">
+          <div class="ctrl-row">
+            <label>Tipo</label>
+            <select id="probeType" class="select">
+              <option value="G38.2">G38.2 — tocar (erro se falhar)</option>
+              <option value="G38.3">G38.3 — tocar (sem erro)</option>
+              <option value="G38.4">G38.4 — afastar (erro se falhar)</option>
+              <option value="G38.5">G38.5 — afastar (sem erro)</option>
+            </select>
+          </div>
+          <div class="ctrl-row">
+            <label>Z</label>
+            <input type="number" id="probeDist" value="-10" step="1" title="distância (mm)" />
+            <label>Avanço</label>
+            <input type="number" id="probeFeed" value="50" min="1" step="10" />
+            <button class="btn primary" id="probeBtn">⌗ Sondar</button>
+          </div>
+          <div class="ctrl-row">
+            <span class="muted">Último toque:</span>
+            <span class="ov-val" id="probeResult">—</span>
+            <button class="btn" id="zeroAfterProbe">Definir Z=0 no toque</button>
+          </div>
+        </div>
+
+        <!-- Coordenadas -->
+        <div class="tab-pane" data-pane="coords">
+          <div class="ctrl-row">
+            <label>Home eixo</label>
+            <button class="btn" data-home="X">$HX</button>
+            <button class="btn" data-home="Y">$HY</button>
+            <button class="btn" data-home="Z">$HZ</button>
+            <span class="muted">(firmware com homing por eixo)</span>
+          </div>
+          <div class="ctrl-row">
+            <label>WCS</label>
+            <select id="wcsSelect" class="select">
+              <option value="G54">G54</option>
+              <option value="G55">G55</option>
+              <option value="G56">G56</option>
+              <option value="G57">G57</option>
+              <option value="G58">G58</option>
+              <option value="G59">G59</option>
+            </select>
+            <span class="muted">sistema de trabalho ativo</span>
+          </div>
+          <div class="ctrl-row wrap">
+            <button class="btn" data-cmd="G28">⌂ Ir p/ G28</button>
+            <button class="btn" data-cmd="G28.1">Definir G28 aqui</button>
+            <button class="btn" data-cmd="G30">⌂ Ir p/ G30</button>
+            <button class="btn" data-cmd="G30.1">Definir G30 aqui</button>
+            <button class="btn" data-cmd="G92.1">Limpar G92</button>
+            <button class="btn" id="checkModeBtn">✓ Check mode ($C)</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Console -->
+      <section class="panel console" aria-label="Console">
+        <div class="panel-head">
+          <h2>Console</h2>
+          <button class="icon-btn" id="clearConsole" title="Limpar">🗑</button>
+        </div>
+        <div id="consoleOut" class="console-out"></div>
+        <form id="consoleForm" class="console-in">
+          <input id="consoleInput" type="text" placeholder="Digite um comando G-code ou $..." autocomplete="off" spellcheck="false" />
+          <button class="btn" type="submit">Enviar</button>
+        </form>
+      </section>
+
+      <!-- Jog -->
+      <section class="panel jog" aria-label="Jog">
+        <div class="panel-head"><h2>Jog</h2></div>
+
+        <div class="jog-toprow">
+          <div class="jog-steps" id="jogSteps">
+            <button data-step="0.1">0.1</button>
+            <button data-step="1" class="active">1</button>
+            <button data-step="10">10</button>
+            <button data-step="50">50</button>
+          </div>
+          <div class="view-toggle" id="unitToggle">
+            <button data-unit="mm" class="active">mm</button>
+            <button data-unit="inch">in</button>
+          </div>
+        </div>
+
+        <div class="jog-feed">
+          <label>Avanço</label>
+          <input type="number" id="jogFeed" value="1000" min="1" step="50" />
+          <span class="unit" id="jogFeedUnit">mm/min</span>
+        </div>
+
+        <div class="jog-pads">
+          <div class="jog-xy">
+            <button class="jog-btn yp" data-jog="Y+">Y+</button>
+            <button class="jog-btn xm" data-jog="X-">X−</button>
+            <button class="jog-btn home" data-jog="XY0" title="Ir p/ zero XY">⌖</button>
+            <button class="jog-btn xp" data-jog="X+">X+</button>
+            <button class="jog-btn ym" data-jog="Y-">Y−</button>
+          </div>
+          <div class="jog-z">
+            <button class="jog-btn zp" data-jog="Z+">Z+</button>
+            <button class="jog-btn zm" data-jog="Z-">Z−</button>
+          </div>
+        </div>
+        <p class="jog-hint">Setas = X/Y · PgUp/PgDn = Z</p>
+      </section>
+    </main>
+
+    <!-- Modal de configurações / estado do GRBL -->
+    <div id="settingsModal" class="modal hidden">
+      <div class="modal-box">
+        <div class="modal-head">
+          <div class="tabs" id="settingsTabs">
+            <button data-stab="settings" class="active">Config ($$)</button>
+            <button data-stab="offsets">Offsets ($#)</button>
+            <button data-stab="parser">Estado ($G)</button>
+            <button data-stab="info">Versão ($I)</button>
+          </div>
+          <button class="icon-btn" id="closeSettings">✕</button>
+        </div>
+
+        <div class="stab-pane active" data-spane="settings">
+          <div id="settingsList" class="settings-list">
+            <p class="muted">Conecte para carregar as configurações.</p>
+          </div>
+        </div>
+        <div class="stab-pane" data-spane="offsets">
+          <div id="offsetsList" class="settings-list">
+            <p class="muted">Conecte para ler os offsets ($#).</p>
+          </div>
+        </div>
+        <div class="stab-pane" data-spane="parser">
+          <div id="parserState" class="settings-list">
+            <p class="muted">Conecte para ler o estado modal ($G).</p>
+          </div>
+        </div>
+        <div class="stab-pane" data-spane="info">
+          <div id="buildInfo" class="settings-list">
+            <p class="muted">Conecte para ler a versão ($I).</p>
+          </div>
+        </div>
+
+        <div class="modal-foot">
+          <button class="btn" id="sleepBtn">😴 Dormir ($SLP)</button>
+          <button class="btn warn" id="rstSettings">Restaurar config ($RST=$)</button>
+          <button class="btn warn" id="rstOffsets">Limpar offsets ($RST=#)</button>
+          <button class="btn danger" id="rstAll">Apagar tudo ($RST=*)</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/js/app.js"></script>
+  </body>
+</html>
