@@ -4,6 +4,8 @@ Controlador **web moderno** para máquinas CNC que rodam o firmware **GRBL**
 (Arduino/ATmega, ESP32, etc.). Substitui senders pesados/antiquados (Candle, UGS…)
 por uma interface no navegador que funciona igual em **Windows e Mac**.
 
+![Interface do ModCNC](docs/screenshot.png)
+
 > Importante: o ModCNC **não** substitui o firmware GRBL da sua máquina — ele
 > conversa com o GRBL pela porta serial. O GRBL continua fazendo o controle de
 > movimento em tempo real (a parte que funciona bem); o ModCNC é só a interface.
@@ -49,6 +51,8 @@ aceito direto pelo console.
 Precisa do [Node.js](https://nodejs.org) 18+ (testado no 25).
 
 ```bash
+git clone https://github.com/rodrigokrug-a11y/MiniMill-GRBL.git
+cd MiniMill-GRBL
 npm install
 npm start
 ```
@@ -57,7 +61,12 @@ Abra **http://localhost:8000** no navegador. Selecione a porta serial da sua
 máquina (as portas de CNC conhecidas — Espressif/Arduino/CH340/FTDI — aparecem com ★),
 escolha o baud (115200 é o padrão do GRBL) e clique em **Conectar**.
 
-Para mudar a porta HTTP: `PORT=9000 npm start`.
+No **macOS** dá pra rodar com dois cliques no `start.command` (na 1ª vez:
+clique direito → Abrir). Ele instala as dependências e abre o navegador sozinho.
+
+Dicas:
+- `http://localhost:8000/?demo` abre já com um G-code de exemplo carregado.
+- Trocar a porta HTTP: `PORT=9000 npm start`.
 
 ## Arquitetura
 
@@ -69,6 +78,7 @@ server/
 public/
   index.html  layout
   css/        tema escuro
+  examples/   G-code de exemplo (usado pelo modo ?demo)
   js/app.js        estado + UI (WebSocket client)
   js/visualizer.js canvas 2D do toolpath (vista de topo)
   js/viz3d.js      câmera orbital 3D (sem dependências)

@@ -582,3 +582,21 @@ $('#rstAll').addEventListener('click', () => {
 
 connectWS();
 refreshJobButtons();
+
+// Demo: abrir com ?demo carrega um exemplo embutido (primeira execução / prints).
+if (location.search.includes('demo')) {
+  fetch('/examples/exemplo.nc')
+    .then((r) => (r.ok ? r.text() : null))
+    .then((gcode) => {
+      if (!gcode) return;
+      loadedGcode = gcode;
+      const parsed = parseGcode(gcode);
+      viz2d.setGcode(parsed);
+      viz3d.setGcode(parsed);
+      state.hasGcode = true;
+      $('#fileName').textContent = `exemplo.nc · ${parsed.lineCount} linhas`;
+      $('#fileName').classList.remove('muted');
+      refreshJobButtons();
+      $('#viewToggle button[data-view="3d"]').click();
+    });
+}
